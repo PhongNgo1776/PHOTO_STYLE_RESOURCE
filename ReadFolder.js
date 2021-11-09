@@ -1,9 +1,9 @@
-const testFolder = './SQUID/';
+const testFolder = './SeaSlug/';
 const fs = require('fs');
 
 fs.readdir(testFolder, (err, files) => {
   files.forEach(file => {
-    fs.appendFile('data.txt', '- assets/images/thumb_styles/Squid/' + file + '\n', function (err) {
+    fs.appendFile('data.txt', '- assets/images/thumb_styles/' + file + '\n', function (err) {
       if (err) return console.log(err);
     });
   });
