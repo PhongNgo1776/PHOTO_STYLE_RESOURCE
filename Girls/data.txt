@@ -1,0 +1,333 @@
+import 'package:akva_commons/colors.dart';
+import 'package:akva_commons/icons.dart';
+import 'package:control_app/core/utils/fonts.dart';
+import 'package:control_app/features/site_trends/trend_charts/domain/entities/chart_data.dart';
+import 'package:control_app/src/widgets/bar_chart/bar_chart.dart';
+import 'package:control_app/src/widgets/bar_chart/bar_chart_data.dart';
+import 'package:control_app/src/widgets/bar_chart/base/axis_chart/axis_chart_data.dart';
+import 'package:control_app/src/widgets/bar_chart/base/base_chart/base_chart_data.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:quiver/iterables.dart';
+
+const CHART_ASPECT_RATIO = 1.3;
+const STEP_TITLE_NUM = 3;
+const UP_ARROW_ANGLE = 0.25;
+const DOWN_ARROW_ANGLE = 0.75;
+const HORIZONTAL_PADDING = 28;
+const BAR_WIDTH = 0.06;
+const HEADER_CHART_HEIGHT = 85;
+const ANIMATE_TIME = 500;
+const CHART_PADDING = 15;
+
+class BarChartWidget extends StatefulWidget {
+  final String trendName;
+  final Widget subText;
+  final Color barColor;
+  final bool isExpandedSubCharts;
+  final VoidCallback onChangeMode;
+  final List<ChartData> barChartData;
+
+  const BarChartWidget({
+    Key key,
+    this.barColor = akvaMainSecondary,
+    this.trendName = '',
+    @required this.barChartData,
+    this.subText,
+    this.isExpandedSubCharts,
+    this.onChangeMode,
+  }) : super(key: key);
+
+  @override
+  State<StatefulWidget> createState() => BarChartWidgetState();
+}
+
+class BarChartWidgetState extends State<BarChartWidget>
+    with SingleTickerProviderStateMixin {
+  double _maxValue = 0;
+  @override
+  void initState() {
+    _maxValue =
+        max(widget.barChartData.map((e) => e.verticalValue).toList()) ?? 0;
+    super.initState();
+  }
+
+  final double _barWidth = BAR_WIDTH.sw;
+  final List<BarChartGroupData> _showingBarGroups = <BarChartGroupData>[];
+  bool _isExpandedMainChart = true;
+
+  TextStyle get labelStyle => TextStyle(
+        color: akvaNeutralGrey,
+        fontSize: FontSize.xsmall,
+      );
+
+  double get _chartWidth => 0.9.sw;
+  double get _maxChartHeight => _chartWidth / CHART_ASPECT_RATIO;
+  double get _bottomPaddingStep => (_maxValue ?? 0) / 10;
+
+  int get _stepDistance {
+    var stepValue = _maxY / _baseValue < 5 ? _baseValue : _baseValue * 2;
+    return stepValue.floor();
+  }
+
+  int get _maxY {
+    var baseValue = _baseValue;
+    var maxStep = (_maxValue / baseValue).ceil() + 1;
+    return maxStep * baseValue;
+  }
+
+  int get _baseValue {
+    var baseValue = '1';
+
+    var maxValueStr = _maxValue.toInt().toString();
+    while (baseValue.length < maxValueStr.length) {
+      baseValue += '0';
+    }
+    return int.tryParse(baseValue);
+  }
+
+  String _getTouchedValue(int touchedIndex) {
+    var value = widget.barChartData[touchedIndex].verticalValue;
+    if (value == value.toInt()) {
+      return '${value.toInt()}';
+    } else {
+      return '$value';
+    }
+  }
+
+  double get _verticalInterval {
+    var temVerticalInterval = (_stepDistance / 10).round();
+    return temVerticalInterval == 0 ? 1 : temVerticalInterval.toDouble();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _showingBarGroups.clear();
+    for (var i = 0; i < widget.barChartData.length; i++) {
+      _showingBarGroups.add(
+        makeGroupData(i, widget.barChartData[i].verticalValue),
+      );
+    }
+    _isExpandedMainChart =
+        widget.isExpandedSubCharts != null ? !widget.isExpandedSubCharts : true;
+    return AnimatedContainer(
+      alignment: Alignment.topCenter,
+      width: _chartWidth,
+      height: _isExpandedMainChart ? _maxChartHeight : HEADER_CHART_HEIGHT.h,
+      duration: Duration(milliseconds: ANIMATE_TIME),
+      margin: EdgeInsets.only(
+        left: CHART_PADDING.r,
+        right: CHART_PADDING.r,
+      ),
+      decoration: BoxDecoration(
+        color: akvaBlackBg,
+        borderRadius: BorderRadius.circular(10.w),
+      ),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(5.w, 16.w, 16.w, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisAlignment: MainAxisAlignment.start,
+          mainAxisSize: MainAxisSize.max,
+          children: <Widget>[
+            Container(
+              margin: EdgeInsets.only(top: 5.h, bottom: 5.h),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  SizedBox(width: 40.w),
+                  Column(
+                    children: [
+                      Text(
+                        widget.trendName,
+                        style: TextStyle(
+                          color: akvaLightColorB,
+                          fontSize: FontSize.mdmall,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (widget.subText != null) widget.subText
+                    ],
+                  ),
+                  if (widget.onChangeMode != null)
+                    InkWell(
+                      onTap: widget.onChangeMode,
+                      child: Container(
+                        padding: EdgeInsets.all(10.w),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: akvaDarkGrey,
+                        ),
+                        child: widget.isExpandedSubCharts != null
+                            ? RotationTransition(
+                                turns: AlwaysStoppedAnimation(
+                                  widget.isExpandedSubCharts
+                                      ? UP_ARROW_ANGLE
+                                      : DOWN_ARROW_ANGLE,
+                                ),
+                                child: Icon(
+                                  AkvaIcons.arrow_left_radius,
+                                  size: 25.w,
+                                  color: akvaGreyIconA,
+                                ),
+                              )
+                            : Text(
+                                '%',
+                                style: TextStyle(
+                                  fontSize: FontSize.large,
+                                ),
+                              ),
+                      ),
+                    )
+                  else
+                    SizedBox(width: 20.w)
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Container(
+                  height: _maxChartHeight - HEADER_CHART_HEIGHT.h,
+                  child: BarChart(
+                    BarChartData(
+                      groupsSpace: 10,
+                      maxY: _maxY + _bottomPaddingStep,
+                      barTouchData: BarTouchData(
+                        touchTooltipData: BarTouchTooltipData(
+                          tooltipBgColor: akvaDarkGrey,
+                          getTooltipItem: (_, touchedIndex, _c, _d) {
+                            return BarTooltipItem(
+                              _getTouchedValue(touchedIndex),
+                              null,
+                            );
+                          },
+                        ),
+                      ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: false,
+                            reservedSize: 0,
+                          ),
+                          axisNameSize: 30.h,
+                          axisNameWidget: Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.only(
+                                  left: 25.w,
+                                  bottom: 15.h,
+                                ),
+                                child: Text('PCS', style: labelStyle),
+                              ),
+                            ],
+                          ),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: bottomTitles,
+                            reservedSize: 30.h,
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 50.w,
+                            interval: _verticalInterval,
+                            getTitlesWidget: leftTitles,
+                          ),
+                        ),
+                      ),
+                      borderData: FlBorderData(
+                        show: true,
+                        border: const Border(
+                          bottom: BorderSide(color: akvaDarkColorE),
+                          left: BorderSide(color: akvaDarkColorE),
+                        ),
+                      ),
+                      barGroups: _showingBarGroups,
+                      minY: 0,
+                      gridData: FlGridData(show: false),
+                    ),
+                    swapAnimationDuration:
+                        Duration(milliseconds: 200), // Optional
+                    swapAnimationCurve: Curves.linear, // Optional
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget leftTitles(double value, TitleMeta meta) {
+    int viewValue;
+    var tempViewValue = (value - _bottomPaddingStep).round();
+    var isNearStepValue = tempViewValue % _stepDistance < (_stepDistance / 10);
+    var isMaxValue = value - _bottomPaddingStep == _maxY;
+    var normalizedViewValue = (tempViewValue ~/ _stepDistance) * _stepDistance;
+    if (isMaxValue) {
+      viewValue = _maxY;
+    } else if ((tempViewValue > 0 && isNearStepValue) &&
+        normalizedViewValue != _maxY) {
+      viewValue = normalizedViewValue;
+    } else {
+      return Container();
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Text(viewValue.toString(), style: labelStyle),
+        Container(
+          width: 6.w,
+          margin: EdgeInsets.only(left: 5.w),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: akvaDarkColorE),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget bottomTitles(double value, TitleMeta meta) {
+    var title = widget.barChartData[value.toInt()].horizontalTitle ?? ' ';
+    return Column(
+      children: [
+        Container(
+          height: 7.h,
+          margin: const EdgeInsets.only(bottom: 5),
+          decoration: const BoxDecoration(
+            border: Border(
+              left: BorderSide(color: akvaDarkColorE),
+            ),
+          ),
+        ),
+        Text(title, style: labelStyle),
+      ],
+    );
+  }
+
+  BarChartGroupData makeGroupData(int x, double y1) {
+    return BarChartGroupData(barsSpace: 4, x: x, barRods: [
+      BarChartRodData(
+        toY: y1 + _bottomPaddingStep,
+        fromY: _bottomPaddingStep,
+        color: widget.barColor,
+        width: _barWidth,
+        borderRadius: BorderRadius.circular(0),
+      ),
+    ]);
+  }
+}
