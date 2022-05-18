@@ -16,7 +16,7 @@ fs.readdir(rootFolder, (err, files) => {
         });
       }
 
-      sharp(rootFolder + filename).resize({ width: 100 }).toFile(destFolder + filename);
+      // sharp(rootFolder + filename).resize({ width: 100 }).toFile(destFolder + filename);
       fs.appendFile('data.txt', "\"" + filename + '\",\n', function (err) {
         if (err) return console.log(err);
       });
